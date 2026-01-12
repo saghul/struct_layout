@@ -85,8 +85,10 @@ class DwarfTypedef(DwarfBase):
 	def full_name(self):
 		if self._underlying_type == 0:
 			return 'void'
-		else:
+		try:
 			return self._types[self._underlying_type].full_name()
+		except RecursionError:
+			return ''
 
 	def has_fields(self):
 		if self._underlying_type == 0: return False
@@ -98,7 +100,10 @@ class DwarfTypedef(DwarfBase):
 
 	def match(self, f):
 		if self._underlying_type == 0: return False
-		return self._types[self._underlying_type].match(f)
+		try:
+			return self._types[self._underlying_type].match(f)
+		except RecursionError:
+			return False
 
 	def print_struct(self):
 		if self._underlying_type == 0: return
@@ -131,6 +136,12 @@ class DwarfPointerType(DwarfTypedef):
 	def name(self):
 		return DwarfTypedef.name(self) + '*'
 
+	def full_name(self):
+		return ''
+
+	def match(self, f):
+		return False
+
 	def has_fields(self):
 		return False
 
@@ -161,6 +172,12 @@ class DwarfReferenceType(DwarfTypedef):
 
 	def name(self):
 		return DwarfTypedef.name(self) + '&'
+
+	def full_name(self):
+		return ''
+
+	def match(self, f):
+		return False
 
 	def has_fields(self):
 		return False
@@ -219,7 +236,8 @@ class DwarfMember:
 	def __init__(self, item, types):
 		self._types = types
 		self._underlying_type = item['fields']['DW_AT_type'].split()[0]
-		self._offset = int(item['fields']['DW_AT_data_member_location'].split()[1], 0)
+		loc_parts = item['fields']['DW_AT_data_member_location'].split()
+		self._offset = int(loc_parts[-1], 0)
 		if 'DW_AT_name' in item['fields']:
 			self._name = item['fields']['DW_AT_name']
 		else:
@@ -431,6 +449,9 @@ class DwarfMemberPtrType(DwarfTypedef):
 
 	def name(self):
 		return '%s (%s::*)' % (self._types[self._underlying_type].name(), self._types[self._class_type].name())
+
+	def full_name(self):
+		return ''
 
 	def match(self, f): return False
 
